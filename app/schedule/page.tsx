@@ -202,7 +202,16 @@ export default function SchedulePage() {
                             sch ? STATUS_STYLE[sch.status] : 'bg-gray-50 text-gray-300 border-dashed border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          {saving === key ? '...' : sch ? STATUS_LABEL[sch.status] : '+'}
+                          {saving === key ? '...' : sch ? (
+                            <span className="flex flex-col leading-tight">
+                              <span>{STATUS_LABEL[sch.status]}</span>
+                              {sch.status === 'working' && sch.branch_id && (
+                                <span className="text-[10px] opacity-70 truncate">
+                                  {branches.find(b => b.id === sch.branch_id)?.name ?? ''}
+                                </span>
+                              )}
+                            </span>
+                          ) : '+'}
                         </button>
                       </td>
                     )
