@@ -49,6 +49,8 @@ function fmt(d: Date) {
   return d.toISOString().split('T')[0]
 }
 
+const BRANCH_COLORS = ["#16a34a","#2563eb","#d97706","#9333ea","#e11d48","#0891b2","#65a30d","#ea580c"]
+
 const DAY_TH = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.']
 
 export default function SchedulePage() {
@@ -204,7 +206,7 @@ export default function SchedulePage() {
                             <span className="flex flex-col leading-tight">
                               <span>{STATUS_LABEL[sch.status]}</span>
                               {sch.status === 'working' && sch.branch_id && (
-                                <span className="text-[10px] opacity-70 truncate">
+                                <span className="text-[10px] font-semibold truncate" style={{color: BRANCH_COLORS[branches.findIndex(b => b.id === sch.branch_id) % BRANCH_COLORS.length]}}>
                                   {branches.find(b => b.id === sch.branch_id)?.name ?? ''}
                                 </span>
                               )}
