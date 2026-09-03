@@ -26,14 +26,12 @@ const STATUS_LABEL: Record<string, string> = {
   working: 'ทำงาน',
   leave: 'หยุด',
   sick: 'ลาป่วย',
-  holiday: 'วันหยุด',
 }
 
 const STATUS_STYLE: Record<string, string> = {
   working: 'bg-green-100 text-green-700 border-green-200',
   leave:   'bg-red-100 text-red-600 border-red-200',
   sick:    'bg-yellow-100 text-yellow-700 border-yellow-200',
-  holiday: 'bg-blue-100 text-blue-600 border-blue-200',
 }
 
 function getWeekDates(base: Date) {
