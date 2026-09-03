@@ -14,7 +14,7 @@ type Schedule = {
   employee_id: string
   branch_id: string
   work_date: string
-  status: 'working' | 'leave' | 'sick' | 'holiday'
+  status: 'working' | 'leave' | 'sick'
 }
 
 type Branch = {
@@ -60,7 +60,7 @@ export default function SchedulePage() {
   const [saving, setSaving] = useState<string | null>(null)
   const [modal, setModal] = useState<{ emp: Employee; date: Date; current: Schedule | null } | null>(null)
   const [modalBranch, setModalBranch] = useState('')
-  const [modalStatus, setModalStatus] = useState<'working' | 'leave' | 'sick' | 'holiday'>('working')
+  const [modalStatus, setModalStatus] = useState<'working' | 'leave' | 'sick'>('working')
 
   const days = getWeekDates(weekBase)
   const weekStart = fmt(days[0])
