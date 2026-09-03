@@ -1,3 +1,4 @@
+/** @type {import('tailwindcss').Config} */
 const config = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
@@ -8,8 +9,9 @@ const config = {
     'bg-green-100', 'text-green-700', 'border-green-200',
     'bg-red-100', 'text-red-600', 'border-red-200',
     'bg-yellow-100', 'text-yellow-700', 'border-yellow-200',
+    'bg-blue-100', 'text-blue-600', 'border-blue-200',
   ],
   theme: { extend: {} },
   plugins: [],
 }
-export default config
+module.exports = config
