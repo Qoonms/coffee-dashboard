@@ -31,7 +31,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_STYLE: Record<string, string> = {
   working: 'bg-green-100 text-green-700 border-green-200',
-  leave:   'bg-gray-100 text-gray-500 border-gray-200',
+  leave:   'bg-red-100 text-red-600 border-red-200',
   sick:    'bg-yellow-100 text-yellow-700 border-yellow-200',
   holiday: 'bg-blue-100 text-blue-600 border-blue-200',
 }
