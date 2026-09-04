@@ -121,6 +121,11 @@ export default function LiffPage() {
         }
       }
 
+      // Auto-create schedule if not exists
+      if (!todaySch) {
+        await supabase.from('schedules').insert({ employee_id: employee.id, work_date: today, branch_id: employee.primary_branch_id, status: 'present' })
+      }
+
       if (!todayAtt) {
         const { error } = await supabase.from('attendance').insert({ employee_id: employee.id, work_date: today, check_in_time: new Date().toISOString(), check_in_lat: lat, check_in_lng: lng, branch_id: todaySch?.branch_id ?? employee.primary_branch_id })
         if (error) { setCheckMsg('❌ ' + error.message) }
