@@ -142,6 +142,9 @@ export default function Home() {
           ))}
         </div>
       )}
+      <div className="mt-6 text-center">
+        <a href="/reports" className="inline-block px-6 py-3 rounded-xl bg-gray-900 text-white text-sm font-medium">📊 รายงานมาสาย / ต่างสาขา</a>
+      </div>
     </main>
   )
 }
