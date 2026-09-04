@@ -16,7 +16,7 @@ type Employee = {
   line_user_id: string | null
 }
 
-type Branch = { id: string; name: string; lat: number | null; lng: number | null; radius: number | null }
+type Branch = { id: string; name: string; latitude: number | null; longitude: number | null; radius_meters: number | null }
 type Schedule = { id: string; work_date: string; status: string; branch_id: string }
 type Attendance = { id: string; work_date: string; check_in_time: string | null; check_out_time: string | null }
 
@@ -85,7 +85,7 @@ export default function LiffPage() {
           // Load branches, schedules, attendance
           const week = getWeekDates()
           const [{ data: brs }, { data: schs }, { data: att }] = await Promise.all([
-            supabase.from('branches').select('id, name, lat, lng, radius'),
+            supabase.from('branches').select('id, name, latitude, longitude, radius_meters'),
             supabase.from('schedules').select('id, work_date, status, branch_id').eq('employee_id', emp.id).gte('work_date', fmt(week[0])).lte('work_date', fmt(week[6])),
             supabase.from('attendance').select('id, work_date, check_in_time, check_out_time').eq('employee_id', emp.id).eq('work_date', today).maybeSingle(),
           ])
@@ -113,10 +113,10 @@ export default function LiffPage() {
       const branch = branches.find(b => b.id === todaySch?.branch_id)
 
       // GPS check (if branch has coordinates)
-      if (branch?.lat && branch?.lng && branch?.radius) {
-        const dist = Math.sqrt(Math.pow((lat - branch.lat) * 111000, 2) + Math.pow((lng - branch.lng) * 111000, 2))
-        if (dist > (branch.radius ?? 200)) {
-          setCheckMsg(`❌ คุณอยู่ห่างจากสาขา ${Math.round(dist)} เมตร (รัศมี ${branch.radius} เมตร)`)
+      if (branch?.latitude && branch?.longitude && branch?.radius_meters) {
+        const dist = Math.sqrt(Math.pow((lat - branch.latitude) * 111000, 2) + Math.pow((lng - branch.longitude) * 111000, 2))
+        if (dist > (branch.radius_meters ?? 200)) {
+          setCheckMsg(`❌ คุณอยู่ห่างจากสาขา ${Math.round(dist)} เมตร (รัศมี ${branch.radius_meters} เมตร)`)
           setChecking(false); return
         }
       }
