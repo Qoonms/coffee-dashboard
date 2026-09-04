@@ -41,6 +41,8 @@ export default function LiffPage() {
   const [error, setError] = useState('')
   const [lineUser, setLineUser] = useState<{ userId: string; displayName: string; pictureUrl?: string } | null>(null)
   const [employee, setEmployee] = useState<Employee | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
+  const [ownerName, setOwnerName] = useState('')
   const [tab, setTab] = useState<Tab>('checkin')
   const [branches, setBranches] = useState<Branch[]>([])
   const [schedules, setSchedules] = useState<Schedule[]>([])
@@ -74,6 +76,10 @@ export default function LiffPage() {
 
         // Match employee
         const { data: emp } = await supabase.from('employees').select('id, name, primary_branch_id, line_user_id').eq('line_user_id', profile.userId).single()
+        if (!emp) {
+          const { data: owner } = await supabase.from('owners').select('id, name').eq('line_user_id', profile.userId).single()
+          if (owner) { setIsOwner(true); setOwnerName(owner.name) }
+        }
         if (emp) {
           setEmployee(emp)
           // Load branches, schedules, attendance
@@ -170,9 +176,20 @@ export default function LiffPage() {
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
       <div className="text-center">
         {lineUser?.pictureUrl && <img src={lineUser.pictureUrl} className="w-16 h-16 rounded-full mx-auto mb-3" />}
-        <div className="font-bold text-gray-800 mb-1">{lineUser?.displayName}</div>
-        <div className="text-sm text-gray-500 mb-4">ยังไม่ได้ลงทะเบียนในระบบ<br/>กรุณาติดต่อผู้จัดการ</div>
-        <div className="text-xs text-gray-300">Line ID: {lineUser?.userId}</div>
+        <div className="font-bold text-gray-800 mb-2">{isOwner ? ownerName : lineUser?.displayName}</div>
+        {isOwner ? (
+          <div className="w-full">
+            <div className="text-sm text-amber-600 font-medium mb-5">👑 เจ้าของร้าน</div>
+            <a href="https://coffee-mgmt.vercel.app" className="block w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium text-center mb-2">🏠 หน้าหลัก</a>
+            <a href="https://coffee-mgmt.vercel.app/schedule" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center mb-2">📅 ตารางงาน</a>
+            <a href="https://coffee-mgmt.vercel.app/attendance" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center">⏱ เช็คอิน/เช็คเอาท์</a>
+          </div>
+        ) : (
+          <div>
+            <div className="text-sm text-gray-500 mb-4">ยังไม่ได้ลงทะเบียนในระบบ<br/>กรุณาติดต่อผู้จัดการ</div>
+            <div className="text-xs text-gray-300">Line ID: {lineUser?.userId}</div>
+          </div>
+        )}
       </div>
     </div>
   )
