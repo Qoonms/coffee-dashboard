@@ -123,7 +123,7 @@ export default function LiffPage() {
 
       // Auto-create schedule if not exists
       if (!todaySch) {
-        await supabase.from('schedules').insert({ employee_id: employee.id, work_date: today, branch_id: employee.primary_branch_id, status: 'present' })
+        await supabase.from('schedules').insert({ employee_id: employee.id, work_date: today, branch_id: employee.primary_branch_id, status: 'working' })
       }
 
       if (!todayAtt) {
