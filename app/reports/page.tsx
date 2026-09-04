@@ -15,7 +15,7 @@ function getDaysAgo(n: number) {
 function minutesLate(checkIn: string): number {
   const d = new Date(checkIn)
   const start = new Date(d)
-  start.setHours(START_HOUR, 0, 0, 0)
+  start.setHours(6, 59, 0, 0)
   return Math.max(0, Math.round((d.getTime() - start.getTime()) / 60000))
 }
 
