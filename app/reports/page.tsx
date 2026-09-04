@@ -50,12 +50,32 @@ export default function ReportsPage() {
         .gte('work_date', from15)
         .lte('work_date', today)
 
+      const { data: sched15 } = await supabase
+        .from('schedules')
+        .select('employee_id, work_date, shift_start, shift_end')
+        .gte('work_date', from15)
+        .lte('work_date', today)
+
+      function getShiftStart(emp_id: string, work_date: string): number {
+        const s = sched15?.find(x => x.employee_id === emp_id && x.work_date === work_date)
+        if (s?.shift_start) return parseInt(s.shift_start.split(':')[0]) * 60 + parseInt(s.shift_start.split(':')[1])
+        return START_HOUR * 60
+      }
+      function getShiftEnd(emp_id: string, work_date: string): number {
+        const s = sched15?.find(x => x.employee_id === emp_id && x.work_date === work_date)
+        if (s?.shift_end) return parseInt(s.shift_end.split(':')[0]) * 60 + parseInt(s.shift_end.split(':')[1])
+        return END_HOUR * 60
+      }
+
       // Late
       const late: LateRow[] = []
       for (const a of att15 ?? []) {
         if (!a.check_in_time) continue
-        const mins = minutesLate(a.check_in_time)
-        if (mins > 0) late.push({ name: (a.employees as any)?.name ?? '-', work_date: a.work_date, check_in_time: a.check_in_time, minutes: mins })
+        const d = new Date(a.check_in_time)
+        const checkInMins = d.getHours() * 60 + d.getMinutes()
+        const startMins = getShiftStart(a.employee_id, a.work_date)
+        const diff = checkInMins - (startMins - 1)
+        if (diff > 0) late.push({ name: (a.employees as any)?.name ?? '-', work_date: a.work_date, check_in_time: a.check_in_time, minutes: diff })
       }
       late.sort((a, b) => b.work_date.localeCompare(a.work_date))
       setLateRows(late)
@@ -64,8 +84,11 @@ export default function ReportsPage() {
       const early: EarlyRow[] = []
       for (const a of att15 ?? []) {
         if (!a.check_out_time) continue
-        const mins = minutesEarly(a.check_out_time)
-        if (mins > 0) early.push({ name: (a.employees as any)?.name ?? '-', work_date: a.work_date, check_out_time: a.check_out_time, minutes: mins })
+        const d = new Date(a.check_out_time)
+        const checkOutMins = d.getHours() * 60 + d.getMinutes()
+        const endMins = getShiftEnd(a.employee_id, a.work_date)
+        const diff = endMins - checkOutMins
+        if (diff > 0) early.push({ name: (a.employees as any)?.name ?? '-', work_date: a.work_date, check_out_time: a.check_out_time, minutes: diff })
       }
       early.sort((a, b) => b.work_date.localeCompare(a.work_date))
       setEarlyRows(early)

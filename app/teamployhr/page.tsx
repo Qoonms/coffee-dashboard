@@ -56,6 +56,7 @@ export default function LiffPage() {
   const [shiftToDate, setShiftToDate] = useState(today)
   const [shiftReason, setShiftReason] = useState('')
   const [submitMsg, setSubmitMsg] = useState('')
+  const [selectedShift, setSelectedShift] = useState<'07:00-16:00' | '08:00-17:00' | null>(null)
 
   // Load LIFF
   useEffect(() => {
@@ -123,7 +124,8 @@ export default function LiffPage() {
 
       // Auto-create schedule if not exists
       if (!todaySch) {
-        await supabase.from('schedules').insert({ employee_id: employee.id, work_date: today, branch_id: employee.primary_branch_id, status: 'working' })
+        const shiftParts = selectedShift?.split('-') ?? ['07:00', '16:00']
+        await supabase.from('schedules').insert({ employee_id: employee.id, work_date: today, branch_id: employee.primary_branch_id, status: 'working', shift_start: shiftParts[0] + ':00', shift_end: shiftParts[1] + ':00' })
       }
 
       if (!todayAtt) {
@@ -232,7 +234,15 @@ export default function LiffPage() {
                 )}
               </div>
 
-              {!todayAtt?.check_out_time && (
+              {!todayAtt?.check_in_time && !selectedShift && (
+                <div className="space-y-2 mb-4">
+                  <div className="text-sm text-gray-500 text-center mb-3">เลือกกะวันนี้</div>
+                  <button onClick={() => setSelectedShift('07:00-16:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700">🌅 กะเช้า 07:00 - 16:00</button>
+                  <button onClick={() => setSelectedShift('08:00-17:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700">🌤 กะสาย 08:00 - 17:00</button>
+                </div>
+              )}
+
+              {!todayAtt?.check_out_time && (selectedShift || todayAtt?.check_in_time) && (
                 <button
                   onClick={handleCheckIn}
                   disabled={checking}
