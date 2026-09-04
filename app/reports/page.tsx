@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
 const START_HOUR = 7 // 07:00
+const END_HOUR = 16 // 16:00
+
+function minutesEarly(checkOut: string): number {
+  const d = new Date(checkOut)
+  const end = new Date(d)
+  end.setHours(END_HOUR, 0, 0, 0)
+  return Math.max(0, Math.round((end.getTime() - d.getTime()) / 60000))
+}
 
 function getDaysAgo(n: number) {
   const d = new Date()
@@ -19,13 +27,15 @@ function minutesLate(checkIn: string): number {
 }
 
 type LateRow = { name: string; work_date: string; check_in_time: string; minutes: number }
+type EarlyRow = { name: string; work_date: string; check_out_time: string; minutes: number }
 type BranchRow = { name: string; work_date: string; branch_name: string; primary_branch: string; is_ot: boolean }
 
 export default function ReportsPage() {
   const [lateRows, setLateRows] = useState<LateRow[]>([])
+  const [earlyRows, setEarlyRows] = useState<EarlyRow[]>([])
   const [branchRows, setBranchRows] = useState<BranchRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'late' | 'branch'>('late')
+  const [tab, setTab] = useState<'late' | 'branch' | 'early'>('late')
 
   useEffect(() => {
     async function load() {
@@ -87,6 +97,18 @@ export default function ReportsPage() {
       cross.sort((a, b) => b.work_date.localeCompare(a.work_date))
       setBranchRows(cross)
 
+      // Early checkout: last 15 days
+      const early: EarlyRow[] = []
+      for (const a of att15 ?? []) {
+        if (!a.check_out_time) continue
+        const mins = minutesEarly(a.check_out_time)
+        if (mins > 0) {
+          early.push({ name: (a.employees as any)?.name ?? '-', work_date: a.work_date, check_out_time: a.check_out_time, minutes: mins })
+        }
+      }
+      early.sort((a, b) => b.work_date.localeCompare(a.work_date))
+      setEarlyRows(early)
+
       setLoading(false)
     }
     load()
@@ -107,6 +129,9 @@ export default function ReportsPage() {
           <button onClick={() => setTab('branch')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${tab === 'branch' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-600'}`}>
             🏪 ต่างสาขา (30 วัน)
           </button>
+          <button onClick={() => setTab('early')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${tab === 'early' ? 'bg-gray-900 text-white' : 'bg-white border text-gray-600'}`}>
+            🚪 ออกก่อนเวลา (15 วัน)
+          </button>
         </div>
 
         {loading ? (
@@ -114,7 +139,25 @@ export default function ReportsPage() {
         ) : tab === 'late' ? (
           lateRows.length === 0 ? (
             <div className="text-center text-gray-400 py-10">✅ ไม่มีพนักงานมาสายใน 15 วันที่ผ่านมา</div>
+          ) : tab === 'early' ? (
+          earlyRows.length === 0 ? (
+            <div className="text-center text-gray-400 py-10">✅ ไม่มีพนักงานออกก่อนเวลาใน 15 วันที่ผ่านมา</div>
           ) : (
+            <div className="space-y-2">
+              {earlyRows.map((r, i) => (
+                <div key={i} className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div>
+                    <div className="font-medium text-gray-800">{r.name}</div>
+                    <div className="text-xs text-gray-400">{fmt(r.work_date)} · ออก {fmtTime(r.check_out_time)}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-orange-500 font-bold text-sm">ก่อนเวลา {r.minutes} นาที</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
             <div className="space-y-2">
               {lateRows.map((r, i) => (
                 <div key={i} className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm">
@@ -129,10 +172,46 @@ export default function ReportsPage() {
               ))}
             </div>
           )
+        ) : tab === 'early' ? (
+          earlyRows.length === 0 ? (
+            <div className="text-center text-gray-400 py-10">✅ ไม่มีพนักงานออกก่อนเวลาใน 15 วันที่ผ่านมา</div>
+          ) : (
+            <div className="space-y-2">
+              {earlyRows.map((r, i) => (
+                <div key={i} className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div>
+                    <div className="font-medium text-gray-800">{r.name}</div>
+                    <div className="text-xs text-gray-400">{fmt(r.work_date)} · ออก {fmtTime(r.check_out_time)}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-orange-500 font-bold text-sm">ก่อนเวลา {r.minutes} นาที</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : (
           branchRows.length === 0 ? (
             <div className="text-center text-gray-400 py-10">✅ ไม่มีพนักงานไปต่างสาขาใน 30 วันที่ผ่านมา</div>
+          ) : tab === 'early' ? (
+          earlyRows.length === 0 ? (
+            <div className="text-center text-gray-400 py-10">✅ ไม่มีพนักงานออกก่อนเวลาใน 15 วันที่ผ่านมา</div>
           ) : (
+            <div className="space-y-2">
+              {earlyRows.map((r, i) => (
+                <div key={i} className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div>
+                    <div className="font-medium text-gray-800">{r.name}</div>
+                    <div className="text-xs text-gray-400">{fmt(r.work_date)} · ออก {fmtTime(r.check_out_time)}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-orange-500 font-bold text-sm">ก่อนเวลา {r.minutes} นาที</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
             <div className="space-y-2">
               {branchRows.map((r, i) => (
                 <div key={i} className="bg-white rounded-xl p-4 shadow-sm">

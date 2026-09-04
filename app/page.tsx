@@ -134,7 +134,7 @@ export default function Home() {
                 {row.check_in_time && (
                   <div className="text-xs text-gray-400 mt-1 font-mono">
                     เข้า {formatTime(row.check_in_time)}
-                    {row.check_out_time && ` · ออก ${formatTime(row.check_out_time)}`}
+                    {row.check_out_time && (() => { const out = new Date(row.check_out_time!); const early = out.getHours() < 16; return <span className={early ? 'text-red-500 font-semibold' : ''}> · ออก {formatTime(row.check_out_time)}{early ? ' ⚠ ออกก่อนเวลา' : ''}</span> })()}
                   </div>
                 )}
               </div>
