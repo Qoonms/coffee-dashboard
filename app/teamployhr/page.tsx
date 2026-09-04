@@ -182,7 +182,7 @@ export default function LiffPage() {
             <div className="text-sm text-amber-600 font-medium mb-5">👑 เจ้าของร้าน</div>
             <a href="https://coffee-mgmt.vercel.app" className="block w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium text-center mb-2">🏠 หน้าหลัก</a>
             <a href="https://coffee-mgmt.vercel.app/schedule" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center mb-2">📅 ตารางงาน</a>
-            <a href="https://coffee-mgmt.vercel.app/schedule" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center">⏱ เช็คอิน/เช็คเอาท์</a>
+            <a href="https://coffee-mgmt.vercel.app/teamployhr" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center">⏱ เช็คอิน/เช็คเอาท์</a>
           </div>
         ) : (
           <div>
