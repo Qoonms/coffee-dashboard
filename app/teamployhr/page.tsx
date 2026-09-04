@@ -122,7 +122,7 @@ export default function LiffPage() {
       }
 
       if (!todayAtt) {
-        const { error } = await supabase.from('attendance').insert({ employee_id: employee.id, work_date: today, check_in_time: new Date().toISOString(), check_in_lat: lat, check_in_lng: lng, branch_id: todaySch?.branch_id })
+        const { error } = await supabase.from('attendance').insert({ employee_id: employee.id, work_date: today, check_in_time: new Date().toISOString(), check_in_lat: lat, check_in_lng: lng, branch_id: todaySch?.branch_id ?? employee.primary_branch_id })
         if (error) { setCheckMsg('❌ ' + error.message) }
         else {
           const { data: att } = await supabase.from('attendance').select('id, work_date, check_in_time, check_out_time').eq('employee_id', employee.id).eq('work_date', today).maybeSingle()
