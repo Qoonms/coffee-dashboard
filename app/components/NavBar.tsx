@@ -12,6 +12,7 @@ const NAV = [
 
 export default function NavBar() {
   const path = usePathname()
+  if (path === '/teamployhr') return null
 
   return (
     <nav style={{
