@@ -84,7 +84,9 @@ export default function LiffPage() {
         if (emp) {
           setEmployee(emp)
           // Load branches, schedules, attendance
-          const week = getWeekDates()
+          if (!employee) return null
+
+  const week = getWeekDates()
           const [{ data: brs }, { data: schs }, { data: att }] = await Promise.all([
             supabase.from('branches').select('id, name, latitude, longitude, radius_meters'),
             supabase.from('schedules').select('id, work_date, status, branch_id').eq('employee_id', emp.id).gte('work_date', fmt(week[0])).lte('work_date', fmt(week[6])),
@@ -288,6 +290,8 @@ export default function LiffPage() {
       </div>
     </div>
   )
+
+  if (!employee) return null
 
   const week = getWeekDates()
   const todayBranch = branches.find(b => b.id === schedules.find(s => s.work_date === today)?.branch_id)
