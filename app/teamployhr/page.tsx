@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -362,7 +362,7 @@ export default function LiffPage() {
       </div>
 
       {/* Bottom Tab Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex max-w-md mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex max-w-md mx-auto z-50">
         {([
           { key: 'checkin', icon: '✅', label: 'เช็คอิน' },
           { key: 'schedule', icon: '📅', label: 'ตาราง' },
