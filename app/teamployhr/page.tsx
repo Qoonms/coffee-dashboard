@@ -24,7 +24,7 @@ const STATUS_LABEL: Record<string, string> = { working: 'ทำงาน', leave
 const STATUS_COLOR: Record<string, string> = { working: '#16a34a', leave: '#dc2626', sick: '#d97706' }
 
 function fmt(d: Date) { return d.toISOString().split('T')[0] }
-const today = fmt(new Date())
+const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
 
 function getWeekDates() {
   const base = new Date()
@@ -149,17 +149,19 @@ export default function LiffPage() {
   }
 
   async function submitLeave() {
-    if (!employee) return
+    if (!employee && !isOwner) return
     setSubmitMsg('')
-    const { error } = await supabase.from('leave_requests').insert({ employee_id: employee.id, start_date: leaveStart, end_date: leaveEnd, reason: leaveReason, status: 'pending' })
+    const submittedBy = employee?.name ?? ownerName ?? lineUser?.displayName ?? 'เจ้าของ'
+    const { error } = await supabase.from('leave_requests').insert({ employee_id: employee?.id ?? null, submitted_by: submittedBy, start_date: leaveStart, end_date: leaveEnd, reason: leaveReason, status: 'pending' })
     setSubmitMsg(error ? '❌ ' + error.message : '✅ ส่งใบลาเรียบร้อยแล้ว')
     if (!error) { setLeaveReason('') }
   }
 
   async function submitShift() {
-    if (!employee) return
+    if (!employee && !isOwner) return
     setSubmitMsg('')
-    const { error } = await supabase.from('schedule_change_requests').insert({ employee_id: employee.id, original_date: shiftDate, requested_date: shiftToDate, reason: shiftReason, status: 'pending' })
+    const submittedBy = employee?.name ?? ownerName ?? lineUser?.displayName ?? 'เจ้าของ'
+    const { error } = await supabase.from('schedule_change_requests').insert({ employee_id: employee?.id ?? null, submitted_by: submittedBy, original_date: shiftDate, requested_date: shiftToDate, reason: shiftReason, status: 'pending' })
     setSubmitMsg(error ? '❌ ' + error.message : '✅ ส่งคำขอเปลี่ยนกะเรียบร้อยแล้ว')
     if (!error) { setShiftReason('') }
   }
@@ -179,24 +181,110 @@ export default function LiffPage() {
     </div>
   )
 
-  if (!employee) return (
+  if (!employee && !isOwner) return (
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
       <div className="text-center">
         {lineUser?.pictureUrl && <img src={lineUser.pictureUrl} className="w-16 h-16 rounded-full mx-auto mb-3" />}
-        <div className="font-bold text-gray-800 mb-2">{isOwner ? ownerName : lineUser?.displayName}</div>
-        {isOwner ? (
-          <div className="w-full">
-            <div className="text-sm text-amber-600 font-medium mb-5">👑 เจ้าของร้าน</div>
-            <a href="https://coffee-mgmt.vercel.app" className="block w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium text-center mb-2">🏠 หน้าหลัก</a>
-            <a href="https://coffee-mgmt.vercel.app/schedule" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center mb-2">📅 ตารางงาน</a>
+        <div className="font-bold text-gray-800 mb-2">{lineUser?.displayName}</div>
+        <div className="text-sm text-gray-500 mb-4">ยังไม่ได้ลงทะเบียนในระบบ<br/>กรุณาติดต่อผู้จัดการ</div>
+        <div className="text-xs text-gray-300">Line ID: {lineUser?.userId}</div>
+      </div>
+    </div>
+  )
+
+  if (!employee && isOwner) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto">
+      {/* Owner Header */}
+      <div className="bg-white px-4 pt-4 pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          {lineUser?.pictureUrl && <img src={lineUser.pictureUrl} className="w-9 h-9 rounded-full" />}
+          <div>
+            <div className="font-bold text-gray-800 text-sm">{ownerName}</div>
+            <div className="text-xs text-amber-600 font-medium">👑 เจ้าของร้าน</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Owner Content */}
+      <div className="flex-1 overflow-y-auto pb-20">
+
+        {/* Home tab for owner */}
+        {tab === 'checkin' && (
+          <div className="p-4 space-y-3">
+            <a href="https://coffee-mgmt.vercel.app" className="block w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-medium text-center">🏠 หน้าหลัก</a>
+            <a href="https://coffee-mgmt.vercel.app/schedule" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center">📅 ตารางงาน</a>
             <a href="https://coffee-mgmt.vercel.app/teamployhr" className="block w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center">⏱ เช็คอิน/เช็คเอาท์</a>
           </div>
-        ) : (
-          <div>
-            <div className="text-sm text-gray-500 mb-4">ยังไม่ได้ลงทะเบียนในระบบ<br/>กรุณาติดต่อผู้จัดการ</div>
-            <div className="text-xs text-gray-300">Line ID: {lineUser?.userId}</div>
+        )}
+
+        {/* Leave tab for owner */}
+        {tab === 'leave' && (
+          <div className="p-4 space-y-4">
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+              <div className="font-semibold text-gray-800 text-sm">ยื่นใบลา</div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">วันที่เริ่มลา</label>
+                <input type="date" value={leaveStart} onChange={e => setLeaveStart(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">วันที่สิ้นสุด</label>
+                <input type="date" value={leaveEnd} onChange={e => setLeaveEnd(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">เหตุผล</label>
+                <textarea value={leaveReason} onChange={e => setLeaveReason(e.target.value)} rows={3}
+                  placeholder="ระบุเหตุผลการลา..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none" />
+              </div>
+              <button onClick={submitLeave} className="w-full py-3 bg-gray-900 text-white rounded-xl font-medium text-sm">ส่งใบลา</button>
+              {submitMsg && <div className="text-center text-sm">{submitMsg}</div>}
+            </div>
           </div>
         )}
+
+        {/* Shift tab for owner */}
+        {tab === 'shift' && (
+          <div className="p-4 space-y-4">
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+              <div className="font-semibold text-gray-800 text-sm">ขอเปลี่ยนกะ</div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">วันที่ต้องการเปลี่ยน</label>
+                <input type="date" value={shiftDate} onChange={e => setShiftDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">ขอเลื่อนเป็นวันที่</label>
+                <input type="date" value={shiftToDate} onChange={e => setShiftToDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">เหตุผล</label>
+                <textarea value={shiftReason} onChange={e => setShiftReason(e.target.value)} rows={3}
+                  placeholder="ระบุเหตุผล..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none" />
+              </div>
+              <button onClick={submitShift} className="w-full py-3 bg-gray-900 text-white rounded-xl font-medium text-sm">ส่งคำขอ</button>
+              {submitMsg && <div className="text-center text-sm">{submitMsg}</div>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Owner Bottom Nav */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex max-w-md mx-auto z-50">
+        {([
+          { key: 'checkin', icon: '🏠', label: 'หน้าหลัก' },
+          { key: 'leave', icon: '📝', label: 'ใบลา' },
+          { key: 'shift', icon: '🔄', label: 'เปลี่ยนกะ' },
+        ] as { key: Tab; icon: string; label: string }[]).map(t => (
+          <button key={t.key} onClick={() => { setTab(t.key); setSubmitMsg('') }}
+            className={`flex-1 flex flex-col items-center py-2.5 text-xs transition-colors ${tab === t.key ? 'text-blue-600' : 'text-gray-400'}`}>
+            <span className="text-lg">{t.icon}</span>
+            <span className="mt-0.5">{t.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   )
