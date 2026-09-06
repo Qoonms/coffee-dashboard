@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -170,7 +170,7 @@ export default function SchedulePage() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="text-left p-3 text-sm font-medium text-gray-500 w-32">พนักงาน</th>
+                <th className="text-left p-3 text-sm font-medium text-gray-500 w-32 sticky left-0 bg-white z-20">พนักงาน</th>
                 {days.map((d, i) => (
                   <th key={i} className={`p-2 text-center text-sm font-medium w-24 ${
                     fmt(d) === today ? 'text-blue-600' : 'text-gray-500'
@@ -186,7 +186,7 @@ export default function SchedulePage() {
             <tbody>
               {employees.map(emp => (
                 <tr key={emp.id} className="border-t border-gray-100">
-                  <td className="p-3">
+                  <td className="p-3 sticky left-0 bg-white z-10">
                     <div className="font-medium text-gray-800 text-sm">{emp.name}</div>
                   </td>
                   {days.map((d, i) => {
