@@ -42,7 +42,7 @@ export default function ReportsPage() {
     async function load() {
       const from15 = getDaysAgo(15)
       const from30 = getDaysAgo(30)
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
 
       const { data: att15 } = await supabase
         .from('attendance')
@@ -203,3 +203,4 @@ export default function ReportsPage() {
     </div>
   )
 }
+
