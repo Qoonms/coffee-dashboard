@@ -456,18 +456,25 @@ export default function LiffPage() {
 
       {/* Bottom Tab Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex max-w-md mx-auto z-50">
-        {([
-          { key: 'checkin', icon: '✅', label: 'เช็คอิน' },
-          { key: 'schedule', icon: '📅', label: 'ตาราง' },
-          { key: 'leave', icon: '📝', label: 'ใบลา' },
-          { key: 'shift', icon: '🔄', label: 'เปลี่ยนกะ' },
-        ] as { key: Tab; icon: string; label: string }[]).map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); setSubmitMsg('') }}
-            className={`flex-1 flex flex-col items-center py-2.5 text-xs transition-colors ${tab === t.key ? 'text-blue-600' : 'text-gray-400'}`}>
-            <span className="text-lg">{t.icon}</span>
-            <span className="mt-0.5">{t.label}</span>
+        <button onClick={() => { setTab('checkin'); setSubmitMsg('') }}
+            className={`flex-1 flex flex-col items-center py-2.5 text-xs transition-colors ${tab === 'checkin' ? 'text-blue-600' : 'text-gray-400'}`}>
+            <span className="text-lg">✅</span>
+            <span className="mt-0.5">เช็คอิน</span>
           </button>
-        ))}
+          <a href="/schedule" className="flex-1 flex flex-col items-center py-2.5 text-xs text-gray-400 no-underline">
+            <span className="text-lg">📅</span>
+            <span className="mt-0.5">ตาราง</span>
+          </a>
+          <button onClick={() => { setTab('leave'); setSubmitMsg('') }}
+            className={`flex-1 flex flex-col items-center py-2.5 text-xs transition-colors ${tab === 'leave' ? 'text-blue-600' : 'text-gray-400'}`}>
+            <span className="text-lg">📝</span>
+            <span className="mt-0.5">ใบลา</span>
+          </button>
+          <button onClick={() => { setTab('shift'); setSubmitMsg('') }}
+            className={`flex-1 flex flex-col items-center py-2.5 text-xs transition-colors ${tab === 'shift' ? 'text-blue-600' : 'text-gray-400'}`}>
+            <span className="text-lg">🔄</span>
+            <span className="mt-0.5">เปลี่ยนกะ</span>
+          </button>
       </div>
     </div>
   )
