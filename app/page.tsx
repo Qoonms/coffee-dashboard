@@ -145,6 +145,24 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Report shortcuts - always visible */}
+      <div className="grid grid-cols-2 gap-2 px-4 pb-2">
+        <Link href="/reports/late" className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 active:opacity-70">
+          <span className="text-lg">⏰</span>
+          <div>
+            <div className="text-xs font-semibold text-orange-700">รายงานมาสาย</div>
+            <div className="text-xs text-orange-400">ย้อนหลัง 15 วัน →</div>
+          </div>
+        </Link>
+        <Link href="/reports/cross" className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 active:opacity-70">
+          <span className="text-lg">📍</span>
+          <div>
+            <div className="text-xs font-semibold text-blue-700">เข้าต่างสาขา</div>
+            <div className="text-xs text-blue-400">ย้อนหลัง 15 วัน →</div>
+          </div>
+        </Link>
+      </div>
+
       {loading ? (
         <div className="text-center text-gray-400 py-12">กำลังโหลด...</div>
       ) : rows.length === 0 ? (
