@@ -23,13 +23,20 @@ function formatTime(ts: string | null) {
   return new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
 
-function isLate(checkIn: string | null, shiftStart: string | null): boolean {
-  if (!checkIn || !shiftStart) return false
+function lateMinutes(checkIn: string | null, shiftStart: string | null): number {
+  if (!checkIn || !shiftStart) return 0
   const ci = new Date(checkIn)
   const [h, m] = shiftStart.split(':').map(Number)
   const deadline = new Date(ci)
   deadline.setHours(h, m + 15, 0, 0) // 15 min grace
-  return ci > deadline
+  if (ci <= deadline) return 0
+  const shiftDeadline = new Date(ci)
+  shiftDeadline.setHours(h, m, 0, 0)
+  return Math.round((ci.getTime() - shiftDeadline.getTime()) / 60000)
+}
+
+function isLate(checkIn: string | null, shiftStart: string | null): boolean {
+  return lateMinutes(checkIn, shiftStart) > 0
 }
 
 function isCrossBranch(actualBranchId: string | null, scheduledBranchId: string): boolean {
@@ -140,8 +147,10 @@ export default function Home() {
                     <span className="font-semibold text-gray-900 text-sm">{r.employee_name}</span>
                     <span className="text-orange-600 text-xs ml-2">มาสาย</span>
                   </div>
-                  <div className="text-xs text-gray-500 font-mono shrink-0">
-                    กะ {r.shift_start?.slice(0,5)} · เข้า {formatTime(r.check_in_time)}
+                  <div className="text-xs text-gray-500 font-mono shrink-0 text-right">
+                    <div>กะ {r.shift_start?.slice(0,5)}</div>
+                    <div>เข้า {formatTime(r.check_in_time)}</div>
+                    <div className="text-orange-600 font-semibold">สาย {lateMinutes(r.check_in_time, r.shift_start)} นาที</div>
                   </div>
                 </div>
               ))}
@@ -180,6 +189,9 @@ export default function Home() {
                         <div className="text-xs text-gray-400 mt-0.5 font-mono">
                           {formatTime(r.check_in_time)}{r.check_out_time ? ` → ${formatTime(r.check_out_time)}` : ''}
                         </div>
+                        {isLate(r.check_in_time, r.shift_start) && (
+                          <div className="text-xs text-orange-500 font-semibold">สาย {lateMinutes(r.check_in_time, r.shift_start)} นาที</div>
+                        )}
                         {r.actual_branch_name && r.actual_branch_id !== r.scheduled_branch_id && (
                           <div className="text-xs text-blue-500">📍 {r.actual_branch_name}</div>
                         )}
