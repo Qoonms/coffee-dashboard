@@ -56,6 +56,11 @@ export default function Home() {
   })
 
   useEffect(() => {
+    // Redirect LINE app users to check-in page
+    if (typeof window !== 'undefined' && /Line\//i.test(navigator.userAgent)) {
+      window.location.href = '/teamployhr'
+      return
+    }
     async function load() {
       const [{ data: schedules }, { data: attendance }, { data: branches }] = await Promise.all([
         supabase.from('schedules').select('employee_id, status, is_ot, branch_id, shift_start, shift_end, employees(name), branches(name)').eq('work_date', today),
@@ -108,12 +113,15 @@ export default function Home() {
         <p className="text-xs text-gray-500 mt-0.5">{todayTH}</p>
       </div>
 
-      {/* Check-in shortcut */}
+      {/* Overview banner */}
       <div className="px-4 pt-4">
-        <Link href="/teamployhr" className="flex items-center justify-between bg-indigo-600 text-white rounded-xl px-4 py-3">
-          <span className="font-semibold text-sm">📲 เช็คอิน / ส่งใบลา</span>
-          <span className="text-indigo-200 text-xs">เปิดหน้าพนักงาน →</span>
-        </Link>
+        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
+          <div>
+            <span className="font-semibold text-sm text-indigo-800">📊 ภาพรวมวันนี้</span>
+            <div className="text-xs text-indigo-500 mt-0.5">พนักงานเช็คอินแล้ว {checkedIn.length} / {working.length} คน</div>
+          </div>
+          <Link href="/teamployhr" className="text-xs text-indigo-400 underline">หน้าพนักงาน →</Link>
+        </div>
       </div>
 
       {/* Summary tiles */}
