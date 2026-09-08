@@ -56,7 +56,7 @@ export default function LiffPage() {
   const [shiftToDate, setShiftToDate] = useState(today)
   const [shiftReason, setShiftReason] = useState('')
   const [submitMsg, setSubmitMsg] = useState('')
-  const [selectedShift, setSelectedShift] = useState<'07:00-16:00' | '08:00-17:00' | null>(null)
+  const [selectedShift, setSelectedShift] = useState<'07:00-16:00' | '08:00-17:00' | '07:00-17:00' | null>(null)
 
   // Load LIFF
   useEffect(() => {
@@ -331,6 +331,7 @@ export default function LiffPage() {
                   <div className="text-sm text-gray-500 text-center mb-3">เลือกกะวันนี้</div>
                   <button onClick={() => setSelectedShift('07:00-16:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 tracking-normal">🌅 กะเช้า 07:00 - 16:00</button>
                   <button onClick={() => setSelectedShift('08:00-17:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 tracking-normal">🌤 กะสาย 08:00 - 17:00</button>
+                  <button onClick={() => setSelectedShift('07:00-17:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 tracking-normal">⏰ กะยาว 07:00 - 17:00</button>
                 </div>
               )}
 
