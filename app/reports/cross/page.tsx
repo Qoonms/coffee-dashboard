@@ -26,6 +26,11 @@ export default function CrossBranchReport() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Reports pages don't support LIFF - redirect LINE users to dashboard
+    if (typeof window !== 'undefined' && /Line\//i.test(navigator.userAgent)) {
+      window.location.href = '/'
+      return
+    }
     async function load() {
       const end = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
       const startDate = new Date()
