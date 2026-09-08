@@ -49,8 +49,8 @@ export default function LiffPage() {
   const [todayAtt, setTodayAtt] = useState<Attendance | null>(null)
   const [checking, setChecking] = useState(false)
   const [checkMsg, setCheckMsg] = useState('')
-  const [leaveStart, setLeaveStart] = useState(today)
-  const [leaveEnd, setLeaveEnd] = useState(today)
+  const [leaveDate, setLeaveDate] = useState(today)
+  const [leaveType, setLeaveType] = useState<'sick' | 'planned'>('sick')
   const [leaveReason, setLeaveReason] = useState('')
   const [shiftDate, setShiftDate] = useState(today)
   const [shiftToDate, setShiftToDate] = useState(today)
@@ -154,7 +154,7 @@ export default function LiffPage() {
     if (!employee && !isOwner) return
     setSubmitMsg('')
     const submittedBy = employee?.name ?? ownerName ?? lineUser?.displayName ?? 'เจ้าของ'
-    const { error } = await supabase.from('leave_requests').insert({ employee_id: employee?.id ?? null, submitted_by: submittedBy, start_date: leaveStart, end_date: leaveEnd, reason: leaveReason, status: 'pending' })
+    const { error } = await supabase.from('leave_requests').insert({ employee_id: employee?.id ?? null, submitted_by: submittedBy, leave_date: leaveDate, leave_type: leaveType, reason: leaveReason, status: 'pending' })
     setSubmitMsg(error ? '❌ ' + error.message : '✅ ส่งใบลาเรียบร้อยแล้ว')
     if (!error) { setLeaveReason('') }
   }
@@ -225,14 +225,17 @@ export default function LiffPage() {
             <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
               <div className="font-semibold text-gray-800 text-sm">ยื่นใบลา</div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">วันที่เริ่มลา</label>
-                <input type="date" value={leaveStart} onChange={e => setLeaveStart(e.target.value)}
+                <label className="text-xs text-gray-500 mb-1 block">วันที่ลา</label>
+                <input type="date" value={leaveDate} onChange={e => setLeaveDate(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">วันที่สิ้นสุด</label>
-                <input type="date" value={leaveEnd} onChange={e => setLeaveEnd(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+                <label className="text-xs text-gray-500 mb-1 block">ประเภทการลา</label>
+                <select value={leaveType} onChange={e => setLeaveType(e.target.value as 'sick' | 'planned')}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                  <option value="sick">ลาป่วย</option>
+                  <option value="planned">ลากิจ</option>
+                </select>
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">เหตุผล</label>
@@ -405,14 +408,17 @@ export default function LiffPage() {
             <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
               <div className="font-semibold text-gray-800 text-sm">ยื่นใบลา</div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">วันที่เริ่มลา</label>
-                <input type="date" value={leaveStart} onChange={e => setLeaveStart(e.target.value)}
+                <label className="text-xs text-gray-500 mb-1 block">วันที่ลา</label>
+                <input type="date" value={leaveDate} onChange={e => setLeaveDate(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">วันที่สิ้นสุด</label>
-                <input type="date" value={leaveEnd} onChange={e => setLeaveEnd(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
+                <label className="text-xs text-gray-500 mb-1 block">ประเภทการลา</label>
+                <select value={leaveType} onChange={e => setLeaveType(e.target.value as 'sick' | 'planned')}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                  <option value="sick">ลาป่วย</option>
+                  <option value="planned">ลากิจ</option>
+                </select>
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">เหตุผล</label>
