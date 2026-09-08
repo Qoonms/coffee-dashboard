@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 
 type Row = {
@@ -107,6 +108,14 @@ export default function Home() {
         <p className="text-xs text-gray-500 mt-0.5">{todayTH}</p>
       </div>
 
+      {/* Check-in shortcut */}
+      <div className="px-4 pt-4">
+        <Link href="/teamployhr" className="flex items-center justify-between bg-indigo-600 text-white rounded-xl px-4 py-3">
+          <span className="font-semibold text-sm">📲 เช็คอิน / ส่งใบลา</span>
+          <span className="text-indigo-200 text-xs">เปิดหน้าพนักงาน →</span>
+        </Link>
+      </div>
+
       {/* Summary tiles */}
       <div className="grid grid-cols-4 gap-2 p-4">
         <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
@@ -117,10 +126,11 @@ export default function Home() {
           <div className="text-2xl font-bold text-red-600">{notYet.length}</div>
           <div className="text-xs text-red-500 mt-0.5">ยังไม่มา</div>
         </div>
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+        <Link href="/reports/late" className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center block active:opacity-70">
           <div className="text-2xl font-bold text-orange-600">{lateRows.length}</div>
           <div className="text-xs text-orange-500 mt-0.5">มาสาย</div>
-        </div>
+          <div className="text-xs text-orange-300 mt-0.5">15 วัน →</div>
+        </Link>
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-center">
           <div className="text-2xl font-bold text-purple-600">{otRows.filter(r => r.check_in_time).length}</div>
           <div className="text-xs text-purple-500 mt-0.5">โอที</div>
@@ -167,6 +177,9 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+              {crossRows.length > 0 && (
+                <Link href="/reports/cross" className="block text-center text-xs text-blue-500 py-1 underline">ดูประวัติต่างสาขา 15 วัน →</Link>
+              )}
             </div>
           )}
 
