@@ -83,10 +83,8 @@ export default function LiffPage() {
         }
         if (emp) {
           setEmployee(emp)
-          // Load branches, schedules, attendance
-          if (!employee) return null
-
-  const week = getWeekDates()
+          // Load branches, schedules, attendance using emp (not state variable)
+          const week = getWeekDates()
           const [{ data: brs }, { data: schs }, { data: att }] = await Promise.all([
             supabase.from('branches').select('id, name, latitude, longitude, radius_meters'),
             supabase.from('schedules').select('id, work_date, status, branch_id').eq('employee_id', emp.id).gte('work_date', fmt(week[0])).lte('work_date', fmt(week[6])),
@@ -332,9 +330,9 @@ export default function LiffPage() {
               {!todayAtt?.check_in_time && !selectedShift && (
                 <div className="space-y-2 mb-4">
                   <div className="text-sm text-gray-500 text-center mb-3">เลือกกะวันนี้</div>
-                  <button onClick={() => setSelectedShift('07:00-16:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 tracking-normal">🌅 กะเช้า 07:00 - 16:00</button>
-                  <button onClick={() => setSelectedShift('08:00-17:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 tracking-normal">🌤 กะสาย 08:00 - 17:00</button>
-                  <button onClick={() => setSelectedShift('07:00-17:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 tracking-normal">⏰ กะยาว 07:00 - 17:00</button>
+                  <button onClick={() => setSelectedShift('07:00-16:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700">🌅 กะเช้า 07:00 - 16:00</button>
+                  <button onClick={() => setSelectedShift('08:00-17:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700">☀️ กะสาย 08:00 - 17:00</button>
+                  <button onClick={() => setSelectedShift('07:00-17:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700">⏰ กะยาว 07:00 - 17:00</button>
                 </div>
               )}
 
