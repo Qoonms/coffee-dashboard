@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabase'
 type CrossRow = {
   work_date: string
   employee_name: string
-  scheduled_branch: string
+  primary_branch: string
   actual_branch: string
   check_in_time: string | null
 }
@@ -26,7 +26,6 @@ export default function CrossBranchReport() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Reports pages don't support LIFF - redirect LINE users to dashboard
     if (typeof window !== 'undefined' && /Line\//i.test(navigator.userAgent)) {
       window.location.href = '/'
       return
@@ -37,9 +36,8 @@ export default function CrossBranchReport() {
       startDate.setDate(startDate.getDate() - 14)
       const start = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(startDate)
 
-      const [{ data: schedules }, { data: attendance }, { data: branches }] = await Promise.all([
-        supabase.from('schedules').select('employee_id, work_date, branch_id, employees(name), branches(name)')
-          .gte('work_date', start).lte('work_date', end).eq('status', 'working'),
+      const [{ data: employees }, { data: attendance }, { data: branches }] = await Promise.all([
+        supabase.from('employees').select('id, name, primary_branch_id'),
         supabase.from('attendance').select('employee_id, work_date, check_in_time, branch_id')
           .gte('work_date', start).lte('work_date', end),
         supabase.from('branches').select('id, name'),
@@ -48,21 +46,22 @@ export default function CrossBranchReport() {
       const bMap: Record<string, string> = {}
       ;(branches ?? []).forEach((b: any) => { bMap[b.id] = b.name })
 
-      const attData: Record<string, any> = {}
-      ;(attendance ?? []).forEach((a: any) => { attData[`${a.employee_id}_${a.work_date}`] = a })
+      const empMap: Record<string, { name: string; primary_branch_id: string }> = {}
+      ;(employees ?? []).forEach((e: any) => { empMap[e.id] = { name: e.name, primary_branch_id: e.primary_branch_id } })
 
       const cross: CrossRow[] = []
-      for (const s of (schedules ?? []) as any[]) {
-        const key = `${s.employee_id}_${s.work_date}`
-        const att = attData[key]
-        if (!att?.check_in_time || !att?.branch_id) continue
-        if (att.branch_id !== s.branch_id) {
+      for (const a of (attendance ?? []) as any[]) {
+        if (!a.check_in_time || !a.branch_id) continue
+        const emp = empMap[a.employee_id]
+        if (!emp) continue
+        // ต่างสาขา = เช็คอินไม่ตรงกับสาขาประจำ
+        if (a.branch_id !== emp.primary_branch_id) {
           cross.push({
-            work_date: s.work_date,
-            employee_name: s.employees?.name ?? '',
-            scheduled_branch: s.branches?.name ?? bMap[s.branch_id] ?? '-',
-            actual_branch: bMap[att.branch_id] ?? att.branch_id,
-            check_in_time: att.check_in_time,
+            work_date: a.work_date,
+            employee_name: emp.name,
+            primary_branch: bMap[emp.primary_branch_id] ?? '-',
+            actual_branch: bMap[a.branch_id] ?? a.branch_id,
+            check_in_time: a.check_in_time,
           })
         }
       }
@@ -86,7 +85,7 @@ export default function CrossBranchReport() {
         <Link href="/" className="text-gray-400 text-xl">←</Link>
         <div>
           <h1 className="text-lg font-bold text-gray-900">📍 เข้าต่างสาขา</h1>
-          <p className="text-xs text-gray-500">ย้อนหลัง 15 วัน</p>
+          <p className="text-xs text-gray-500">ย้อนหลัง 15 วัน · เทียบกับสาขาประจำ</p>
         </div>
       </div>
 
@@ -113,8 +112,8 @@ export default function CrossBranchReport() {
                       <div className="text-xs text-gray-400 font-mono">{formatTime(r.check_in_time)}</div>
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-xs">
-                      <span className="text-gray-400">ตาราง:</span>
-                      <span className="text-gray-700">{r.scheduled_branch}</span>
+                      <span className="text-gray-400">ประจำ:</span>
+                      <span className="text-gray-700">{r.primary_branch}</span>
                       <span className="text-gray-300">→</span>
                       <span className="text-blue-600 font-semibold">จริง: {r.actual_branch}</span>
                     </div>

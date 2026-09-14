@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 type Row = {
   employee_id: string
   employee_name: string
+  primary_branch_id: string
   scheduled_branch_id: string
   scheduled_branch_name: string
   shift_start: string | null
@@ -40,17 +41,18 @@ function isLate(checkIn: string | null, shiftStart: string | null): boolean {
   return lateMinutes(checkIn, shiftStart) > 0
 }
 
-function isCrossBranch(actualBranchId: string | null, scheduledBranchId: string): boolean {
+function isCrossBranch(actualBranchId: string | null, primaryBranchId: string): boolean {
   if (!actualBranchId) return false
-  return actualBranchId !== scheduledBranchId
+  return actualBranchId !== primaryBranchId
 }
 
 export default function Home() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [branchMap, setBranchMap] = useState<Record<string, string>>({})
+  const [refreshTick, setRefreshTick] = useState(0)
+  const [lastUpdated, setLastUpdated] = useState('')
 
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
   const todayTH = new Date().toLocaleDateString('th-TH', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
@@ -62,8 +64,10 @@ export default function Home() {
       return
     }
     async function load() {
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
+
       const [{ data: schedules }, { data: attendance }, { data: branches }] = await Promise.all([
-        supabase.from('schedules').select('employee_id, status, is_ot, branch_id, shift_start, shift_end, employees(name), branches(name)').eq('work_date', today),
+        supabase.from('schedules').select('employee_id, status, is_ot, branch_id, shift_start, shift_end, employees(name, primary_branch_id), branches(name)').eq('work_date', today),
         supabase.from('attendance').select('employee_id, check_in_time, check_out_time, branch_id').eq('work_date', today),
         supabase.from('branches').select('id, name'),
       ])
@@ -79,6 +83,7 @@ export default function Home() {
         return {
           employee_id: s.employee_id,
           employee_name: s.employees?.name ?? '',
+          primary_branch_id: s.employees?.primary_branch_id ?? s.branch_id ?? '',
           scheduled_branch_id: s.branch_id ?? '',
           scheduled_branch_name: s.branches?.name ?? '',
           shift_start: s.shift_start ?? null,
@@ -94,9 +99,12 @@ export default function Home() {
 
       setRows(merged)
       setLoading(false)
+      setLastUpdated(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }))
     }
     load()
-  }, [today])
+    const interval = setInterval(() => setRefreshTick(n => n + 1), 60000)
+    return () => clearInterval(interval)
+  }, [refreshTick])
 
   const working = rows.filter(r => r.schedule_status === 'working' && !r.is_ot)
   const otRows = rows.filter(r => r.is_ot)
@@ -104,13 +112,20 @@ export default function Home() {
   const notYet = working.filter(r => !r.check_in_time)
   const onLeave = rows.filter(r => r.schedule_status !== 'working')
   const lateRows = checkedIn.filter(r => isLate(r.check_in_time, r.shift_start))
-  const crossRows = checkedIn.filter(r => isCrossBranch(r.actual_branch_id, r.scheduled_branch_id))
+  const crossRows = checkedIn.filter(r => isCrossBranch(r.actual_branch_id, r.primary_branch_id))
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-white border-b border-gray-100 px-6 pt-6 pb-4">
-        <h1 className="text-xl font-bold text-gray-900">☕ ภาพรวมวันนี้</h1>
-        <p className="text-xs text-gray-500 mt-0.5">{todayTH}</p>
+      <div className="bg-white border-b border-gray-100 px-6 pt-6 pb-4 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">☕ ภาพรวมวันนี้</h1>
+          <p className="text-xs text-gray-500 mt-0.5">{todayTH}</p>
+          {lastUpdated && <p className="text-xs text-gray-400">อัปเดต {lastUpdated} · รีเฟรชทุก 1 นาที</p>}
+        </div>
+        <button
+          onClick={() => { setLoading(true); setRefreshTick(n => n + 1) }}
+          className="text-2xl text-gray-400 active:text-gray-600 mt-1"
+        >↻</button>
       </div>
 
       {/* Overview banner */}
@@ -198,7 +213,7 @@ export default function Home() {
                     <span className="text-blue-600 text-xs ml-2">เข้าต่างสาขา</span>
                   </div>
                   <div className="text-xs text-gray-500 shrink-0 text-right">
-                    <div>ตาราง: {r.scheduled_branch_name}</div>
+                    <div>ประจำ: {branchMap[r.primary_branch_id] ?? '-'}</div>
                     <div className="text-blue-600">จริง: {r.actual_branch_name ?? '-'}</div>
                   </div>
                 </div>
@@ -231,7 +246,7 @@ export default function Home() {
                         {isLate(r.check_in_time, r.shift_start) && (
                           <div className="text-xs text-orange-500 font-semibold">สาย {lateMinutes(r.check_in_time, r.shift_start)} นาที</div>
                         )}
-                        {r.actual_branch_name && r.actual_branch_id !== r.scheduled_branch_id && (
+                        {r.actual_branch_id && r.actual_branch_id !== r.primary_branch_id && (
                           <div className="text-xs text-blue-500">📍 {r.actual_branch_name}</div>
                         )}
                       </>
