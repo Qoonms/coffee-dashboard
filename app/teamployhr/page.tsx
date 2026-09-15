@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -57,6 +57,8 @@ export default function LiffPage() {
   const [shiftReason, setShiftReason] = useState('')
   const [submitMsg, setSubmitMsg] = useState('')
   const [selectedShift, setSelectedShift] = useState<'07:00-16:00' | '08:00-17:00' | '07:00-17:00' | null>(null)
+  // Branch from QR code URL parameter
+  const [urlBranchId, setUrlBranchId] = useState<string | null>(null)
 
   // Load LIFF
   useEffect(() => {
@@ -74,6 +76,22 @@ export default function LiffPage() {
         if (!window.liff.isLoggedIn()) { window.liff.login(); return }
         const profile = await window.liff.getProfile()
         setLineUser({ userId: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl })
+
+        // Read branch from QR code URL parameter (?branch=UUID)
+        // LIFF passes params via ?branch= directly or via liff.state=%3Fbranch%3D...
+        const urlParams = new URLSearchParams(window.location.search)
+        let branchFromUrl = urlParams.get('branch')
+        if (!branchFromUrl) {
+          // Try liff.state (LIFF encodes original params here)
+          const liffState = urlParams.get('liff.state')
+          if (liffState) {
+            try {
+              const stateParams = new URLSearchParams(decodeURIComponent(liffState))
+              branchFromUrl = stateParams.get('branch')
+            } catch {}
+          }
+        }
+        if (branchFromUrl) setUrlBranchId(branchFromUrl)
 
         // Match employee
         const { data: emp } = await supabase.from('employees').select('id, name, primary_branch_id, line_user_id').eq('line_user_id', profile.userId).single()
@@ -111,9 +129,12 @@ export default function LiffPage() {
       const { latitude: lat, longitude: lng } = pos.coords
       // Find today's schedule branch
       const todaySch = schedules.find(s => s.work_date === today)
-      const branch = branches.find(b => b.id === todaySch?.branch_id)
 
-      // GPS check (if branch has coordinates)
+      // Priority: QR code branch > scheduled branch > primary branch
+      const effectiveBranchId = urlBranchId ?? todaySch?.branch_id ?? employee.primary_branch_id
+
+      // GPS check against the effective branch (where QR was scanned)
+      const branch = branches.find(b => b.id === effectiveBranchId)
       if (branch?.latitude && branch?.longitude && branch?.radius_meters) {
         const dist = Math.sqrt(Math.pow((lat - branch.latitude) * 111000, 2) + Math.pow((lng - branch.longitude) * 111000, 2))
         if (dist > (branch.radius_meters ?? 200)) {
@@ -122,14 +143,28 @@ export default function LiffPage() {
         }
       }
 
-      // Auto-create schedule if not exists
+      // Auto-create schedule if not exists — use QR branch if available
       if (!todaySch) {
         const shiftParts = selectedShift?.split('-') ?? ['07:00', '16:00']
-        await supabase.from('schedules').insert({ employee_id: employee.id, work_date: today, branch_id: employee.primary_branch_id, status: 'working', shift_start: shiftParts[0] + ':00', shift_end: shiftParts[1] + ':00' })
+        await supabase.from('schedules').insert({
+          employee_id: employee.id,
+          work_date: today,
+          branch_id: effectiveBranchId,
+          status: 'working',
+          shift_start: shiftParts[0] + ':00',
+          shift_end: shiftParts[1] + ':00'
+        })
       }
 
       if (!todayAtt) {
-        const { error } = await supabase.from('attendance').insert({ employee_id: employee.id, work_date: today, check_in_time: new Date().toISOString(), check_in_lat: lat, check_in_lng: lng, branch_id: todaySch?.branch_id ?? employee.primary_branch_id })
+        const { error } = await supabase.from('attendance').insert({
+          employee_id: employee.id,
+          work_date: today,
+          check_in_time: new Date().toISOString(),
+          check_in_lat: lat,
+          check_in_lng: lng,
+          branch_id: effectiveBranchId   // ← ใช้ branch จาก QR code
+        })
         if (error) { setCheckMsg('❌ ' + error.message) }
         else {
           const { data: att } = await supabase.from('attendance').select('id, work_date, check_in_time, check_out_time').eq('employee_id', employee.id).eq('work_date', today).maybeSingle()
@@ -295,7 +330,10 @@ export default function LiffPage() {
   if (!employee) return null
 
   const week = getWeekDates()
-  const todayBranch = branches.find(b => b.id === schedules.find(s => s.work_date === today)?.branch_id)
+
+  // Show QR branch if available, otherwise today's schedule branch
+  const effectiveBranchId = urlBranchId ?? schedules.find(s => s.work_date === today)?.branch_id
+  const displayBranch = branches.find(b => b.id === effectiveBranchId)
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto">
@@ -305,7 +343,7 @@ export default function LiffPage() {
           {lineUser?.pictureUrl && <img src={lineUser.pictureUrl} className="w-9 h-9 rounded-full" />}
           <div>
             <div className="font-bold text-gray-800 text-sm">{employee.name}</div>
-            <div className="text-xs text-gray-400">{todayBranch?.name ?? 'ไม่มีตาราง'} · วันนี้</div>
+            <div className="text-xs text-gray-400">{displayBranch?.name ?? 'ไม่มีตาราง'} · วันนี้</div>
           </div>
         </div>
       </div>
@@ -327,7 +365,7 @@ export default function LiffPage() {
                 )}
               </div>
 
-              {!todayAtt?.check_in_time && !selectedShift && (
+              {!todayAtt?.check_in_time && !selectedShift && !schedules.find(s => s.work_date === today) && (
                 <div className="space-y-2 mb-4">
                   <div className="text-sm text-gray-500 text-center mb-3">เลือกกะวันนี้</div>
                   <button onClick={() => setSelectedShift('07:00-16:00')} className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700">🌅 กะเช้า 07:00 - 16:00</button>
@@ -336,7 +374,7 @@ export default function LiffPage() {
                 </div>
               )}
 
-              {!todayAtt?.check_out_time && (selectedShift || todayAtt?.check_in_time) && (
+              {!todayAtt?.check_out_time && (selectedShift || todayAtt?.check_in_time || schedules.find(s => s.work_date === today)) && (
                 <button
                   onClick={handleCheckIn}
                   disabled={checking}
@@ -353,10 +391,11 @@ export default function LiffPage() {
               {checkMsg && <div className="mt-3 text-center text-sm">{checkMsg}</div>}
             </div>
 
-            {todayBranch && (
+            {displayBranch && (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
                 <div className="text-xs text-gray-400 mb-1">สาขาวันนี้</div>
-                <div className="font-semibold text-gray-800">{todayBranch.name}</div>
+                <div className="font-semibold text-gray-800">{displayBranch.name}</div>
+                {urlBranchId && <div className="text-xs text-blue-500 mt-0.5">📍 จาก QR Code</div>}
               </div>
             )}
           </div>
@@ -483,6 +522,3 @@ export default function LiffPage() {
     </div>
   )
 }
-
-
-
