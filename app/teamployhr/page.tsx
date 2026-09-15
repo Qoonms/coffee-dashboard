@@ -17,7 +17,7 @@ type Employee = {
 }
 
 type Branch = { id: string; name: string; latitude: number | null; longitude: number | null; radius_meters: number | null }
-type Schedule = { id: string; work_date: string; status: string; branch_id: string }
+type Schedule = { id: string; work_date: string; status: string; branch_id: string; shift_start: string | null; shift_end: string | null }
 type Attendance = { id: string; work_date: string; check_in_time: string | null; check_out_time: string | null }
 
 const STATUS_LABEL: Record<string, string> = { working: 'ทำงาน', leave: 'หยุด', sick: 'ลาป่วย' }
@@ -105,7 +105,7 @@ export default function LiffPage() {
           const week = getWeekDates()
           const [{ data: brs }, { data: schs }, { data: att }] = await Promise.all([
             supabase.from('branches').select('id, name, latitude, longitude, radius_meters'),
-            supabase.from('schedules').select('id, work_date, status, branch_id').eq('employee_id', emp.id).gte('work_date', fmt(week[0])).lte('work_date', fmt(week[6])),
+            supabase.from('schedules').select('id, work_date, status, branch_id, shift_start, shift_end').eq('employee_id', emp.id).gte('work_date', fmt(week[0])).lte('work_date', fmt(week[6])),
             supabase.from('attendance').select('id, work_date, check_in_time, check_out_time').eq('employee_id', emp.id).eq('work_date', today).maybeSingle(),
           ])
           setBranches(brs ?? [])
@@ -172,11 +172,33 @@ export default function LiffPage() {
           setCheckMsg('✅ เช็คอินสำเร็จ!')
         }
       } else {
-        const { error } = await supabase.from('attendance').update({ check_out_time: new Date().toISOString(), check_out_lat: lat, check_out_lng: lng }).eq('id', todayAtt.id)
+        // คำนวณ OT: นับจาก shift_start + 9 ชั่วโมง
+        // เช่น กะ 07:00 → ปกติจบ 16:00, กะ 08:00 → ปกติจบ 17:00
+        const todaySch = schedules.find(s => s.work_date === today)
+        let otHours = 0
+        if (todaySch?.shift_start) {
+          const now = new Date()
+          const [sh, sm] = todaySch.shift_start.split(':').map(Number)
+          const normalEnd = new Date(now)
+          normalEnd.setHours(sh + 9, sm, 0, 0)  // start + 9 ชั่วโมง = จบปกติ
+          const diffMin = (now.getTime() - normalEnd.getTime()) / 60000
+          const checkOutHour = now.getHours() + now.getMinutes() / 60
+          if (diffMin >= 60 && checkOutHour < 18) {
+            // OT สูงสุด 1 ชั่วโมง, ถ้า check out 18:00+ ถือว่าออกช้าเอง ไม่นับ OT
+            otHours = 1
+          }
+        }
+
+        const { error } = await supabase.from('attendance').update({
+          check_out_time: new Date().toISOString(),
+          check_out_lat: lat,
+          check_out_lng: lng,
+          ot_hours: otHours,
+        }).eq('id', todayAtt.id)
         if (error) { setCheckMsg('❌ ' + error.message) }
         else {
           setTodayAtt({ ...todayAtt, check_out_time: new Date().toISOString() })
-          setCheckMsg('✅ เช็คเอาท์สำเร็จ!')
+          setCheckMsg(otHours > 0 ? `✅ เช็คเอาท์สำเร็จ! OT ${otHours} ชั่วโมง` : '✅ เช็คเอาท์สำเร็จ!')
         }
       }
       setChecking(false)
