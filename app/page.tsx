@@ -173,7 +173,7 @@ export default function Home() {
           <span className="text-lg">📍</span>
           <div>
             <div className="text-xs font-semibold text-blue-700">เข้าต่างสาขา</div>
-            <div className="text-xs text-blue-400">ย้อนหลัง 15 วัน →</div>
+            <div className="text-xs text-blue-400">ย้อนหลัง 30 วัน →</div>
           </div>
         </Link>
       </div>

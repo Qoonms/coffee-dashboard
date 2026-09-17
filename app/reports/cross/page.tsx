@@ -33,7 +33,7 @@ export default function CrossBranchReport() {
     async function load() {
       const end = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date())
       const startDate = new Date()
-      startDate.setDate(startDate.getDate() - 14)
+      startDate.setDate(startDate.getDate() - 29)
       const start = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(startDate)
 
       const [{ data: employees }, { data: attendance }, { data: branches }] = await Promise.all([
@@ -85,7 +85,7 @@ export default function CrossBranchReport() {
         <Link href="/" className="text-gray-400 text-xl">←</Link>
         <div>
           <h1 className="text-lg font-bold text-gray-900">📍 เข้าต่างสาขา</h1>
-          <p className="text-xs text-gray-500">ย้อนหลัง 15 วัน · เทียบกับสาขาประจำ</p>
+          <p className="text-xs text-gray-500">ย้อนหลัง 30 วัน · เทียบกับสาขาประจำ</p>
         </div>
       </div>
 
@@ -94,7 +94,7 @@ export default function CrossBranchReport() {
       ) : rows.length === 0 ? (
         <div className="text-center text-gray-400 py-12">
           <div className="text-4xl mb-2">✅</div>
-          <div className="text-sm">ไม่มีการเข้าต่างสาขาใน 15 วันที่ผ่านมา</div>
+          <div className="text-sm">ไม่มีการเข้าต่างสาขาใน 30 วันที่ผ่านมา</div>
         </div>
       ) : (
         <div className="px-4 py-4 space-y-4">
