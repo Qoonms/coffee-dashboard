@@ -209,7 +209,7 @@ export default function LiffPage() {
     if (!employee && !isOwner) return
     setSubmitMsg('')
     const submittedBy = employee?.name ?? ownerName ?? lineUser?.displayName ?? 'เจ้าของ'
-    const { error } = await supabase.from('leave_requests').insert({ employee_id: employee?.id ?? null, submitted_by: submittedBy, leave_date: leaveDate, leave_type: leaveType, reason: leaveReason, status: 'pending' })
+    const { error } = await supabase.from('leave_requests').insert({ employee_id: employee?.id ?? null, submitted_by: submittedBy, start_date: leaveDate, end_date: leaveDate, leave_type: leaveType, reason: leaveReason, status: 'pending' })
     setSubmitMsg(error ? '❌ ' + error.message : '✅ ส่งใบลาเรียบร้อยแล้ว')
     if (!error) { setLeaveReason('') }
   }
