@@ -202,7 +202,7 @@ export default function LiffPage() {
         }
       }
       setChecking(false)
-    }, (err) => { setCheckMsg('❌ ไม่สามารถเข้าถึง GPS: ' + err.message); setChecking(false) })
+    }, (err) => { setCheckMsg('❌ ไม่สามารถเข้าถึง GPS: ' + err.message); setChecking(false) }, { timeout: 10000, enableHighAccuracy: false })
   }
 
   async function submitLeave() {
