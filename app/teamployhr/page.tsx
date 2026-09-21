@@ -121,19 +121,51 @@ export default function LiffPage() {
     init()
   }, [])
 
+  // Check-out without GPS (GPS optional)
+  async function doCheckOut(lat: number | null, lng: number | null) {
+    if (!employee || !todayAtt) return
+    const todaySch = schedules.find(s => s.work_date === today)
+    let otHours = 0
+    if (todaySch?.shift_start) {
+      const now = new Date()
+      const [sh, sm] = todaySch.shift_start.split(':').map(Number)
+      const normalEnd = new Date(now)
+      normalEnd.setHours(sh + 9, sm, 0, 0)
+      const diffMin = (now.getTime() - normalEnd.getTime()) / 60000
+      const checkOutHour = now.getHours() + now.getMinutes() / 60
+      if (diffMin >= 60 && checkOutHour < 18) { otHours = 1 }
+    }
+    const updateData: any = { check_out_time: new Date().toISOString(), ot_hours: otHours }
+    if (lat !== null) { updateData.check_out_lat = lat; updateData.check_out_lng = lng }
+    const { error } = await supabase.from('attendance').update(updateData).eq('id', todayAtt.id)
+    if (error) { setCheckMsg('❌ ' + error.message) }
+    else {
+      setTodayAtt({ ...todayAtt, check_out_time: new Date().toISOString() })
+      setCheckMsg(otHours > 0 ? `✅ เช็คเอาท์สำเร็จ! OT ${otHours} ชั่วโมง` : '✅ เช็คเอาท์สำเร็จ!')
+    }
+    setChecking(false)
+  }
+
   // Check-in / Check-out
   async function handleCheckIn() {
     if (!employee) return
     setChecking(true); setCheckMsg('')
+
+    // CHECK-OUT: ไม่ต้องรอ GPS — ทำได้เลย แล้วพยายามแนบ GPS ถ้าได้
+    if (todayAtt?.check_in_time && !todayAtt?.check_out_time) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => { await doCheckOut(pos.coords.latitude, pos.coords.longitude) },
+        async () => { await doCheckOut(null, null) },
+        { timeout: 5000, enableHighAccuracy: false }
+      )
+      return
+    }
+
+    // CHECK-IN: ต้องมี GPS เพื่อตรวจสอบว่าอยู่ในสาขา
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude: lat, longitude: lng } = pos.coords
-      // Find today's schedule branch
       const todaySch = schedules.find(s => s.work_date === today)
-
-      // Priority: QR code branch > scheduled branch > primary branch
       const effectiveBranchId = urlBranchId ?? todaySch?.branch_id ?? employee.primary_branch_id
-
-      // GPS check against the effective branch (where QR was scanned)
       const branch = branches.find(b => b.id === effectiveBranchId)
       if (branch?.latitude && branch?.longitude && branch?.radius_meters) {
         const dist = Math.sqrt(Math.pow((lat - branch.latitude) * 111000, 2) + Math.pow((lng - branch.longitude) * 111000, 2))
@@ -142,67 +174,26 @@ export default function LiffPage() {
           setChecking(false); return
         }
       }
-
-      // Auto-create schedule if not exists — use QR branch if available
       if (!todaySch) {
         const shiftParts = selectedShift?.split('-') ?? ['07:00', '16:00']
         await supabase.from('schedules').insert({
-          employee_id: employee.id,
-          work_date: today,
-          branch_id: effectiveBranchId,
-          status: 'working',
-          shift_start: shiftParts[0] + ':00',
-          shift_end: shiftParts[1] + ':00'
+          employee_id: employee.id, work_date: today, branch_id: effectiveBranchId,
+          status: 'working', shift_start: shiftParts[0] + ':00', shift_end: shiftParts[1] + ':00'
         })
       }
-
-      if (!todayAtt) {
-        const { error } = await supabase.from('attendance').insert({
-          employee_id: employee.id,
-          work_date: today,
-          check_in_time: new Date().toISOString(),
-          check_in_lat: lat,
-          check_in_lng: lng,
-          branch_id: effectiveBranchId   // ← ใช้ branch จาก QR code
-        })
-        if (error) { setCheckMsg('❌ ' + error.message) }
-        else {
-          const { data: att } = await supabase.from('attendance').select('id, work_date, check_in_time, check_out_time').eq('employee_id', employee.id).eq('work_date', today).maybeSingle()
-          setTodayAtt(att)
-          setCheckMsg('✅ เช็คอินสำเร็จ!')
-        }
-      } else {
-        // คำนวณ OT: นับจาก shift_start + 9 ชั่วโมง
-        // เช่น กะ 07:00 → ปกติจบ 16:00, กะ 08:00 → ปกติจบ 17:00
-        const todaySch = schedules.find(s => s.work_date === today)
-        let otHours = 0
-        if (todaySch?.shift_start) {
-          const now = new Date()
-          const [sh, sm] = todaySch.shift_start.split(':').map(Number)
-          const normalEnd = new Date(now)
-          normalEnd.setHours(sh + 9, sm, 0, 0)  // start + 9 ชั่วโมง = จบปกติ
-          const diffMin = (now.getTime() - normalEnd.getTime()) / 60000
-          const checkOutHour = now.getHours() + now.getMinutes() / 60
-          if (diffMin >= 60 && checkOutHour < 18) {
-            // OT สูงสุด 1 ชั่วโมง, ถ้า check out 18:00+ ถือว่าออกช้าเอง ไม่นับ OT
-            otHours = 1
-          }
-        }
-
-        const { error } = await supabase.from('attendance').update({
-          check_out_time: new Date().toISOString(),
-          check_out_lat: lat,
-          check_out_lng: lng,
-          ot_hours: otHours,
-        }).eq('id', todayAtt.id)
-        if (error) { setCheckMsg('❌ ' + error.message) }
-        else {
-          setTodayAtt({ ...todayAtt, check_out_time: new Date().toISOString() })
-          setCheckMsg(otHours > 0 ? `✅ เช็คเอาท์สำเร็จ! OT ${otHours} ชั่วโมง` : '✅ เช็คเอาท์สำเร็จ!')
-        }
+      const { error } = await supabase.from('attendance').insert({
+        employee_id: employee.id, work_date: today,
+        check_in_time: new Date().toISOString(), check_in_lat: lat, check_in_lng: lng,
+        branch_id: effectiveBranchId
+      })
+      if (error) { setCheckMsg('❌ ' + error.message) }
+      else {
+        const { data: att } = await supabase.from('attendance').select('id, work_date, check_in_time, check_out_time').eq('employee_id', employee.id).eq('work_date', today).maybeSingle()
+        setTodayAtt(att)
+        setCheckMsg('✅ เช็คอินสำเร็จ!')
       }
       setChecking(false)
-    }, (err) => { setCheckMsg('❌ ไม่สามารถเข้าถึง GPS: ' + err.message); setChecking(false) }, { timeout: 10000, enableHighAccuracy: false })
+    }, (err) => { setCheckMsg('❌ GPS ไม่ตอบสนอง กรุณาเปิด GPS แล้วลองใหม่ (code ' + err.code + ')'); setChecking(false) }, { timeout: 10000, enableHighAccuracy: false })
   }
 
   async function submitLeave() {
