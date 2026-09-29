@@ -12,6 +12,19 @@ type CrossRow = {
   check_in_time: string | null
 }
 
+type StaffRow = {
+  work_date: string
+  actual_branch: string
+  check_in_time: string | null
+}
+
+type StaffData = {
+  name: string
+  rows: StaffRow[]
+}
+
+type Branch = { id: string; name: string }
+
 function formatTime(ts: string | null) {
   if (!ts) return '-'
   return new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
@@ -32,7 +45,11 @@ function daysAgo(n: number) {
 }
 
 export default function CrossBranchReport() {
+  const [tab, setTab] = useState<'cross' | 'branch'>('cross')
   const [rows, setRows] = useState<CrossRow[]>([])
+  const [staffByPerson, setStaffByPerson] = useState<StaffData[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [startDate, setStartDate] = useState(daysAgo(29))
   const [endDate, setEndDate] = useState(todayBKK())
@@ -42,7 +59,7 @@ export default function CrossBranchReport() {
       window.location.href = '/'; return
     }
     setLoading(true)
-    const [{ data: employees }, { data: attendance }, { data: branches }] = await Promise.all([
+    const [{ data: employees }, { data: attendance }, { data: brs }] = await Promise.all([
       supabase.from('employees').select('id, name, primary_branch_id'),
       supabase.from('attendance').select('employee_id, work_date, check_in_time, branch_id')
         .gte('work_date', start).lte('work_date', end).not('check_in_time', 'is', null),
@@ -50,10 +67,13 @@ export default function CrossBranchReport() {
     ])
 
     const bMap: Record<string, string> = {}
-    ;(branches ?? []).forEach((b: any) => { bMap[b.id] = b.name })
+    ;(brs ?? []).forEach((b: any) => { bMap[b.id] = b.name })
+    setBranches((brs ?? []).map((b: any) => ({ id: b.id, name: b.name })))
+
     const empMap: Record<string, { name: string; primary_branch_id: string }> = {}
     ;(employees ?? []).forEach((e: any) => { empMap[e.id] = { name: e.name, primary_branch_id: e.primary_branch_id } })
 
+    // Cross-branch tab data
     const cross: CrossRow[] = []
     for (const a of (attendance ?? []) as any[]) {
       if (!a.branch_id) continue
@@ -69,14 +89,49 @@ export default function CrossBranchReport() {
         })
       }
     }
-    cross.sort((a, b) => b.work_date.localeCompare(a.work_date) || (b.check_in_time ?? '').localeCompare(a.check_in_time ?? ''))
+    cross.sort((a, b) => b.work_date.localeCompare(a.work_date))
     setRows(cross)
+
+    // Branch tab data — build per-employee grouped by selected branch
+    loadBranchView(attendance ?? [], empMap, bMap, selectedBranchId)
+
     setLoading(false)
+  }
+
+  function loadBranchView(
+    attendance: any[],
+    empMap: Record<string, { name: string; primary_branch_id: string }>,
+    bMap: Record<string, string>,
+    branchId: string
+  ) {
+    if (!branchId) { setStaffByPerson([]); return }
+    // Get employees whose primary branch is selected
+    const primaryStaff = Object.entries(empMap)
+      .filter(([, e]) => e.primary_branch_id === branchId)
+      .map(([id, e]) => ({ id, name: e.name }))
+
+    const byPerson: StaffData[] = primaryStaff.map(({ id, name }) => {
+      const myAtt = attendance
+        .filter((a: any) => a.employee_id === id)
+        .map((a: any) => ({
+          work_date: a.work_date,
+          actual_branch: bMap[a.branch_id] ?? a.branch_id ?? '-',
+          check_in_time: a.check_in_time,
+        }))
+        .sort((a: any, b: any) => b.work_date.localeCompare(a.work_date))
+      return { name, rows: myAtt }
+    }).sort((a, b) => a.name.localeCompare(b.name))
+
+    setStaffByPerson(byPerson)
   }
 
   useEffect(() => { load(startDate, endDate) }, [])
 
-  // Quick preset buttons
+  // When branch selection changes, rebuild from cached data (re-fetch)
+  useEffect(() => {
+    if (tab === 'branch') load(startDate, endDate)
+  }, [selectedBranchId])
+
   function applyPreset(days: number) {
     const s = daysAgo(days - 1)
     const e = todayBKK()
@@ -98,95 +153,134 @@ export default function CrossBranchReport() {
       <div className="bg-white border-b border-gray-100 px-4 pt-6 pb-4 flex items-center gap-3">
         <Link href="/" className="text-gray-400 text-xl">←</Link>
         <div>
-          <h1 className="text-lg font-bold text-gray-900">📍 เข้าต่างสาขา</h1>
-          <p className="text-xs text-gray-500">เทียบกับสาขาประจำ</p>
+          <h1 className="text-lg font-bold text-gray-900">📍 รายงานสาขา</h1>
+          <p className="text-xs text-gray-500">ติดตามการเข้างานแต่ละสาขา</p>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-100 px-4 pt-3 pb-0 flex gap-0">
+        <button
+          onClick={() => setTab('cross')}
+          className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === 'cross' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}
+        >เข้าต่างสาขา</button>
+        <button
+          onClick={() => setTab('branch')}
+          className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === 'branch' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400'}`}
+        >แยกตามพนักงาน</button>
       </div>
 
       {/* Date range picker */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 space-y-3">
-        {/* Presets */}
         <div className="flex gap-2">
           {[7, 30, 60, 90].map(d => (
-            <button
-              key={d}
-              onClick={() => applyPreset(d)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                dayCount === d ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200'
-              }`}
-            >
+            <button key={d} onClick={() => applyPreset(d)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${dayCount === d ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200'}`}>
               {d} วัน
             </button>
           ))}
         </div>
-
-        {/* Custom date inputs */}
         <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={startDate}
-            max={endDate}
-            onChange={e => setStartDate(e.target.value)}
-            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
-          />
+          <input type="date" value={startDate} max={endDate} onChange={e => setStartDate(e.target.value)}
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700" />
           <span className="text-gray-400 text-sm">—</span>
-          <input
-            type="date"
-            value={endDate}
-            min={startDate}
-            max={todayBKK()}
-            onChange={e => setEndDate(e.target.value)}
-            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
-          />
-          <button
-            onClick={() => load(startDate, endDate)}
-            className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg font-medium"
-          >
-            ดู
-          </button>
+          <input type="date" value={endDate} min={startDate} max={todayBKK()} onChange={e => setEndDate(e.target.value)}
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700" />
+          <button onClick={() => load(startDate, endDate)} className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg font-medium">ดู</button>
         </div>
+
+        {/* Branch selector (only in branch tab) */}
+        {tab === 'branch' && (
+          <select
+            value={selectedBranchId}
+            onChange={e => setSelectedBranchId(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white"
+          >
+            <option value="">— เลือกสาขา —</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Content */}
       {loading ? (
         <div className="text-center text-gray-400 py-12">กำลังโหลด...</div>
-      ) : rows.length === 0 ? (
-        <div className="text-center text-gray-400 py-12">
-          <div className="text-4xl mb-2">✅</div>
-          <div className="text-sm">ไม่มีการเข้าต่างสาขาในช่วงนี้</div>
-        </div>
-      ) : (
-        <div className="px-4 py-4 space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-            <span className="text-sm text-blue-700 font-semibold">เข้าต่างสาขาทั้งหมด {rows.length} ครั้ง</span>
-            <span className="text-xs text-blue-400 ml-2">ในช่วง {dayCount} วัน</span>
+      ) : tab === 'cross' ? (
+        rows.length === 0 ? (
+          <div className="text-center text-gray-400 py-12">
+            <div className="text-4xl mb-2">✅</div>
+            <div className="text-sm">ไม่มีการเข้าต่างสาขาในช่วงนี้</div>
           </div>
-          {Object.entries(byDate).map(([date, list]) => (
-            <div key={date}>
-              <div className="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-2">
-                {formatDateTH(date)}
-                <span className="text-gray-300">·</span>
-                <span>{list.length} ครั้ง</span>
-              </div>
-              <div className="space-y-2">
-                {list.map((r, i) => (
-                  <div key={i} className="bg-white border border-blue-200 rounded-xl px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="font-semibold text-gray-900 text-sm">{r.employee_name}</div>
-                      <div className="text-xs text-gray-400 font-mono">{formatTime(r.check_in_time)}</div>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-xs">
-                      <span className="text-gray-400">ประจำ:</span>
-                      <span className="text-gray-700">{r.primary_branch}</span>
-                      <span className="text-gray-300">→</span>
-                      <span className="text-blue-600 font-semibold">จริง: {r.actual_branch}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        ) : (
+          <div className="px-4 py-4 space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <span className="text-sm text-blue-700 font-semibold">เข้าต่างสาขาทั้งหมด {rows.length} ครั้ง</span>
+              <span className="text-xs text-blue-400 ml-2">ในช่วง {dayCount} วัน</span>
             </div>
-          ))}
-        </div>
+            {Object.entries(byDate).map(([date, list]) => (
+              <div key={date}>
+                <div className="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-2">
+                  {formatDateTH(date)}<span className="text-gray-300">·</span><span>{list.length} ครั้ง</span>
+                </div>
+                <div className="space-y-2">
+                  {list.map((r, i) => (
+                    <div key={i} className="bg-white border border-blue-200 rounded-xl px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold text-gray-900 text-sm">{r.employee_name}</div>
+                        <div className="text-xs text-gray-400 font-mono">{formatTime(r.check_in_time)}</div>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-xs">
+                        <span className="text-gray-400">ประจำ:</span>
+                        <span className="text-gray-700">{r.primary_branch}</span>
+                        <span className="text-gray-300">→</span>
+                        <span className="text-blue-600 font-semibold">จริง: {r.actual_branch}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        // Branch tab
+        !selectedBranchId ? (
+          <div className="text-center text-gray-400 py-12 text-sm">เลือกสาขาด้านบนก่อนค่ะ</div>
+        ) : staffByPerson.length === 0 ? (
+          <div className="text-center text-gray-400 py-12 text-sm">ไม่มีพนักงานประจำในสาขานี้</div>
+        ) : (
+          <div className="px-4 py-4 space-y-5">
+            {staffByPerson.map(person => (
+              <div key={person.name}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">{person.name[0]}</div>
+                  <span className="font-semibold text-gray-800 text-sm">{person.name}</span>
+                  <span className="text-xs text-gray-400">{person.rows.length} วัน</span>
+                </div>
+                {person.rows.length === 0 ? (
+                  <div className="text-xs text-gray-400 ml-9">ไม่มีข้อมูลเช็คอินในช่วงนี้</div>
+                ) : (
+                  <div className="space-y-1.5 ml-0">
+                    {person.rows.map((r, i) => {
+                      const isCross = !branches.find(b => b.id === selectedBranchId && b.name === r.actual_branch)
+                      return (
+                        <div key={i} className={`rounded-xl px-4 py-2.5 flex items-center justify-between border ${isCross ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-100'}`}>
+                          <div>
+                            <div className="text-xs font-medium text-gray-700">{formatDateTH(r.work_date)}</div>
+                            <div className={`text-xs mt-0.5 ${isCross ? 'text-blue-600 font-semibold' : 'text-gray-400'}`}>
+                              {isCross ? `📍 ${r.actual_branch}` : `✓ ${r.actual_branch}`}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-400 font-mono">{formatTime(r.check_in_time)}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )
       )}
     </main>
   )
